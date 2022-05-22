@@ -5,9 +5,10 @@ import traceback
 import subprocess
 from PySide2.QtWidgets import *
 from PySide2.QtCore import *
+from PySide2.QtGui import *
 
 app_name = "nev2nef"
-app_ver = "0.1"
+app_ver = "0.2"
 ffmpeg_path_default = "ffmpeg"
 filename_suffix_digits_default = 6
 
@@ -30,6 +31,9 @@ mp4_boxtype_containers = ('moov', 'trak', 'edts', 'mdia', 'minf', 'dinf', 'stbl'
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 
+class ProgressCanceled(Exception):
+	pass
+
 class NEVParser:
 	def parse_mp4_boxes(self, f, datasize, indent):
 		readsize = 0
@@ -38,6 +42,11 @@ class NEVParser:
 			if len(header) < 8:
 				raise
 			readsize += 8
+			if indent == 0:
+				if self.progbar.wasCanceled():
+					raise ProgressCanceled
+				self.progbar.setValue(readsize * 1000 // datasize)
+				QApplication.processEvents()
 			
 			box_len, box_type = struct.unpack(">I4s", header)
 			if box_len == 1:
@@ -159,11 +168,12 @@ class NEVParser:
 			else:
 				f.seek(box_len - 8, 1)
 	
-	def __init__(self, nev_path):
+	def __init__(self, nev_path, progbar):
 		self.sc_table = []
 		self.sz_table = []
 		self.co_table = []
 		self.nraw_frames = []
+		self.progbar = progbar
 		
 		f = open(nev_path, "rb")
 		f.seek(0, 2)
@@ -171,8 +181,16 @@ class NEVParser:
 		f.seek(0, 0)
 		self.parse_mp4_boxes(f, filesize, 0)
 		
+		self.progbar.setLabelText("Parsing NRAW structure")
+		self.progbar.setRange(0, len(self.co_table))
+		progval = 0
 		for co in self.co_table:
+			if self.progbar.wasCanceled():
+				raise ProgressCanceled
 			self.parse_nraw(f, co)
+			progval += 1
+			self.progbar.setValue(progval)
+			QApplication.processEvents()
 
 class Nev2NefDialog(QDialog):
 	def __init__(self, parent=None):
@@ -329,8 +347,12 @@ class Nev2NefDialog(QDialog):
 		self.start_convert_btn.setEnabled(False)
 		
 		try:
+			progbar = QProgressDialog("Parsing mp4 structure", "Cancel", 0, 1000, parent = self)
+			progbar.setWindowModality(Qt.WindowModal)
+			progbar.show()
+			
 			nev_path = self.nev_file_path.text()
-			nraw_frames = NEVParser(nev_path).nraw_frames
+			nraw_frames = NEVParser(nev_path, progbar).nraw_frames
 			
 			nef_template_path = os.path.join(script_path, NEFtemplate)
 			f = open(nef_template_path, "rb")
@@ -354,21 +376,34 @@ class Nev2NefDialog(QDialog):
 			else:
 				fs = range(self.fs_frame_start.value(), self.fs_frame_end.value()+1)
 			
+			progbar.setLabelText("Writing RAW files")
+			progbar.setRange(0, len(fs))
+			progval = 0
 			for frame in fs:
+				if progbar.wasCanceled():
+					raise ProgressCanceled
+				progval += 1
 				self.output_frame(nef_header, resolution, f_nev, frame, nraw_frames)
+				progbar.setValue(progval)
+				QApplication.processEvents()
 			
 			f_nev.close()
 			
 			if self.output_wav_chk.isChecked():
+				progbar.setLabelText("Writing Wav file")
+				progbar.setRange(0, 0)
 				wav_path = os.path.join(self.output_dir.text(), self.filename_prefix.text() + "audio.wav")
 				cmd = [self.ffmpeg_path.text(), "-n", "-i", nev_path, "-vn", "-acodec", "copy", wav_path]
 				subprocess.call(cmd)
 		
+		except ProgressCanceled:
+			QMessageBox.critical(self, app_name, "Canceled")
 		except:
 			QMessageBox.critical(self, app_name, "An exception occurred while processing.\n\n" + traceback.format_exc())
 		else:
 			QMessageBox.information(self, app_name, "Done!")
 		
+		progbar.close()
 		self.start_convert_btn.setEnabled(True)
 
 app = QApplication(sys.argv)
