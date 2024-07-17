@@ -12,20 +12,36 @@ app_ver = "0.2"
 ffmpeg_path_default = "ffmpeg"
 filename_suffix_digits_default = 6
 
-NEFtemplate = "DSC_0557.NEF"
-NEF_data_ptr = 0x256C00
-#NEF_res_x_ptr = [0x892E, 0x8932, 0x2898E]
-#NEF_res_y_ptr = [0x8930, 0x8934, 0x2899A, 0x289E2]
-NEF_res_x_ptr = [0x8932, 0x2898E]
-NEF_res_y_ptr = [0x8934, 0x2899A, 0x289E2]
-NEF_offset_x_ptr = [0x8A34]
-NEF_offset_y_ptr = [0x8A36]
-NEF_res_x_valid_ptr = [0x8A38, 0x184DE]
-NEF_res_y_valid_ptr = [0x8A3A, 0x184E0]
-NEF_data_size_ptr = 0x289EE
+NEFtemplate_z9 = "DSC_0557.NEF"
+NEF_data_ptr_z9 = 0x256C00
+#NEF_res_x_ptr_z9 = [0x892E, 0x8932, 0x2898E]
+#NEF_res_y_ptr_z9 = [0x8930, 0x8934, 0x2899A, 0x289E2]
+NEF_res_x_ptr_z9 = [0x8932, 0x2898E]
+NEF_res_y_ptr_z9 = [0x8934, 0x2899A, 0x289E2]
+NEF_offset_x_ptr_z9 = [0x8A34]
+NEF_offset_y_ptr_z9 = [0x8A36]
+NEF_res_x_valid_ptr_z9 = [0x8A38, 0x184DE]
+NEF_res_y_valid_ptr_z9 = [0x8A3A, 0x184E0]
+NEF_data_size_ptr_z9 = [0x289EE]
 
-margin_x = 12
-margin_y = 8
+margin_x_z9 = 12
+margin_y_z9 = 8
+
+NEFtemplate_z6_3 = "DSC_3037.NEF"
+NEF_data_ptr_z6_3 = 0x281600
+NEF_res_x_ptr_z6_3 = [0x9182, 0x9186, 0x3EFA2]
+NEF_res_y_ptr_z6_3 = [0x9184, 0x9188, 0x3EFAE, 0x3EFF6]
+
+NEF_offset_x_ptr_z6_3 = [0x9288, 0x3F2C8]
+NEF_offset_y_ptr_z6_3 = [0x928A, 0x3F2CA]
+NEF_res_x_valid_ptr_z6_3 = [0x928C, 0x197AE, 0x3F2CC]
+NEF_res_y_valid_ptr_z6_3 = [0x928E, 0x197B0, 0x3F2CE]
+
+NEF_data_size_ptr_z6_3 = [0x93F0, 0x3F002, 0x3F2EC]
+
+margin_x_z6_3 = 12
+margin_y_z6_3 = 8
+
 
 mp4_boxtype_containers = ('moov', 'trak', 'edts', 'mdia', 'minf', 'dinf', 'stbl')
 
@@ -274,8 +290,9 @@ class Nev2NefDialog(QDialog):
 		
 		hlayout6 = QHBoxLayout()
 		self.resolution = QComboBox()
-		self.resolution.addItem("8.3K(8268x4652)")
-		self.resolution.addItem("5.4K(5404x3040)")
+		self.resolution.addItem("Z8/Z9 8.3K(8268x4652)")
+		self.resolution.addItem("Z8/Z9 5.4K(5404x3040) (need patch)")
+		self.resolution.addItem("Z6III 6.0K(6060x3410) (need patch)")
 		hlayout6.addWidget(QLabel("Resolution:"))
 		hlayout6.addWidget(self.resolution)
 		hlayout6.addStretch()
@@ -301,11 +318,39 @@ class Nev2NefDialog(QDialog):
 		if outdir != "":
 			self.output_dir.setText(outdir)
 	
-	def output_frame(self, nef_header, resolution, f_nev, frame, nraw_frames):
+	def output_frame(self, nef_header, resolution, f_nev, frame, nraw_frames, camera_type=0):
 		fname = self.filename_prefix.text() + str(frame).zfill(self.filename_suffix_digits.value()) + ".nef"
 		out_path = os.path.join(self.output_dir.text(), fname)
 		f_out = open(out_path, "wb")
+		
+		#f_nev.seek(nraw_frames[frame][0])
+		#frame_buf = f_nev.read(nraw_frames[frame][1])
+		#f_out.write(frame_buf)
+		#return
+		
 		f_out.write(nef_header)
+		
+		if camera_type == 0:
+			NEF_data_size_ptr = NEF_data_size_ptr_z9
+			NEF_res_x_ptr = NEF_res_x_ptr_z9
+			NEF_res_y_ptr = NEF_res_y_ptr_z9
+			NEF_res_x_valid_ptr = NEF_res_x_valid_ptr_z9
+			NEF_res_y_valid_ptr = NEF_res_y_valid_ptr_z9
+			NEF_offset_x_ptr = NEF_offset_x_ptr_z9
+			NEF_offset_y_ptr = NEF_offset_y_ptr_z9
+			margin_x = margin_x_z9
+			margin_y = margin_y_z9
+			
+		else:
+			NEF_data_size_ptr = NEF_data_size_ptr_z6_3
+			NEF_res_x_ptr = NEF_res_x_ptr_z6_3
+			NEF_res_y_ptr = NEF_res_y_ptr_z6_3
+			NEF_res_x_valid_ptr = NEF_res_x_valid_ptr_z6_3
+			NEF_res_y_valid_ptr = NEF_res_y_valid_ptr_z6_3
+			NEF_offset_x_ptr = NEF_offset_x_ptr_z6_3
+			NEF_offset_y_ptr = NEF_offset_y_ptr_z6_3
+			margin_x = margin_x_z6_3
+			margin_y = margin_y_z6_3
 		
 		for res_x_ptr in NEF_res_x_ptr:
 			f_out.seek(res_x_ptr, 0)
@@ -338,8 +383,9 @@ class Nev2NefDialog(QDialog):
 		
 		f_out.write(frame_buf)
 		
-		f_out.seek(NEF_data_size_ptr, 0)
-		f_out.write(struct.pack("<I", nraw_frames[frame][1]))
+		for data_size_ptr in NEF_data_size_ptr:
+			f_out.seek(data_size_ptr, 0)
+			f_out.write(struct.pack("<I", nraw_frames[frame][1]))
 		
 		f_out.close()
 	
@@ -354,15 +400,27 @@ class Nev2NefDialog(QDialog):
 			nev_path = self.nev_file_path.text()
 			nraw_frames = NEVParser(nev_path, progbar).nraw_frames
 			
+			if self.resolution.currentIndex() == 0:
+				camera_type = 0
+				NEFtemplate = NEFtemplate_z9
+				NEF_data_ptr = NEF_data_ptr_z9
+				resolution = (8268, 4652)
+			elif self.resolution.currentIndex() == 1:
+				camera_type = 0
+				NEFtemplate = NEFtemplate_z9
+				NEF_data_ptr = NEF_data_ptr_z9
+				resolution = (5404, 3040)
+			else:
+				camera_type = 1
+				NEFtemplate = NEFtemplate_z6_3
+				NEF_data_ptr = NEF_data_ptr_z6_3
+				resolution = (6060, 3410)
+				#resolution = (6064, 4040)
+			
 			nef_template_path = os.path.join(script_path, NEFtemplate)
 			f = open(nef_template_path, "rb")
 			nef_header = f.read(NEF_data_ptr)
 			f.close()
-			
-			if self.resolution.currentIndex() == 0:
-				resolution = (8268, 4652)
-			else:
-				resolution = (5404, 3040)
 			
 			f_nev = open(self.nev_file_path.text(), "rb")
 			
@@ -383,7 +441,7 @@ class Nev2NefDialog(QDialog):
 				if progbar.wasCanceled():
 					raise ProgressCanceled
 				progval += 1
-				self.output_frame(nef_header, resolution, f_nev, frame, nraw_frames)
+				self.output_frame(nef_header, resolution, f_nev, frame, nraw_frames, camera_type)
 				progbar.setValue(progval)
 				QApplication.processEvents()
 			
