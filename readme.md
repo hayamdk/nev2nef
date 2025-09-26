@@ -8,10 +8,12 @@ An ticoRAW data starts with magic number: 0xff10ff50, followed by "CONTACT_INTOP
 
 # Install
 - Python3
+
 Windows: From Microsoft Store or download installer from https://www.python.org/downloads/.
 
-- PySide2
-Execute folloing command: `pip install PySide2`
+- PySide2 or PySide2
+
+Execute folloing command: `pip install PySide2` or `pip install PySide6`
 
 # Convert to lossless DNG
 High efficiency raw (ticoRAW) files are decodable by limited applications. So it is useful to convert regular lossless DNG files.
@@ -22,4 +24,4 @@ https://helpx.adobe.com/jp/photoshop/using/adobe-dng-converter.html
 - All metadata (such as shutter-speed, f-number, or ISO sensitivity) of generated NEF file will be derived from template NEF file.
 
 # Known issue
-- Currently, 5.4K raw is not supported by Adobe DNG Converter.
+- Currently, 5.4K/6.0K raw is not supported by Adobe DNG Converter. (need patch)

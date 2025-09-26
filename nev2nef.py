@@ -3,12 +3,18 @@ import os
 import struct
 import traceback
 import subprocess
-from PySide2.QtWidgets import *
-from PySide2.QtCore import *
-from PySide2.QtGui import *
+
+try:
+	from PySide6.QtWidgets import *
+	from PySide6.QtCore import *
+	from PySide6.QtGui import *
+except ImportError:
+	from PySide2.QtWidgets import *
+	from PySide2.QtCore import *
+	from PySide2.QtGui import *
 
 app_name = "nev2nef"
-app_ver = "0.2"
+app_ver = "0.3"
 ffmpeg_path_default = "ffmpeg"
 filename_suffix_digits_default = 6
 
